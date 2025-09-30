@@ -52,6 +52,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
       - name: Start Flask app
         run: |
           cd Security_Compliance_workshop-siddharth
@@ -60,7 +63,10 @@ jobs:
           sleep 30
       - name: Run ZAP Baseline Scan
         run: |
-          docker run --network host -v ${{ github.workspace }}/Security_Compliance_workshop-siddharth:/zap/wrk owasp/zap2docker-stable zap-baseline.py -t http://localhost:5000 -r zap-report.html || true
+          docker run \
+            -v ${{ github.workspace }}/Security_Compliance_workshop-siddharth:/zap/wrk \
+            owasp/zap2docker-stable \
+            zap-baseline.py -t http://host.docker.internal:5000 -r zap-report.html || true
       - name: Upload ZAP Report
         uses: actions/upload-artifact@v4
         with:
