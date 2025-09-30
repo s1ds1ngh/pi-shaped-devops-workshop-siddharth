@@ -63,10 +63,12 @@ jobs:
           sleep 30
       - name: Run ZAP Baseline Scan
         run: |
-          docker run \
-            -v ${{ github.workspace }}/Security_Compliance_workshop-siddharth:/zap/wrk \
-            owasp/zap2docker-stable \
-            zap-baseline.py -t http://host.docker.internal:5000 -r zap-report.html || true
+          docker run --rm \
+            --network zapnet \
+            -v "$GITHUB_WORKSPACE":/zap/wrk/:rw \
+            --user root \
+            ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py -t http://vuln-app:3000 -r zap-report.html || true
       - name: Upload ZAP Report
         uses: actions/upload-artifact@v4
         with:
