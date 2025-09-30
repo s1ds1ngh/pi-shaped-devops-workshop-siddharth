@@ -25,7 +25,7 @@ jobs:
         run: bandit -r . -f html -o bandit-report.html || true
 
       - name: Upload Bandit Report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: bandit-report
           path: bandit-report.html
@@ -43,7 +43,7 @@ jobs:
         run: semgrep --config auto --json > semgrep-report.json || true
 
       - name: Upload Semgrep Report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: semgrep-report
           path: semgrep-report.json
@@ -60,7 +60,7 @@ jobs:
           args: detect --report-format json --report-path gitleaks-report.json || true
 
       - name: Upload Gitleaks Report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: gitleaks-report
           path: gitleaks-report.json
@@ -91,7 +91,7 @@ jobs:
           zap-baseline.py -t http://localhost:5000 -r zap-report.html || true
 
       - name: Upload ZAP Report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: zap-report
           path: zap-report.html
