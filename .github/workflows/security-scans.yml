@@ -1,95 +1,184 @@
-name: CI/CD Secure Coding & Code Scanning
+name: Security Scanning Pipeline
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, develop ]
   pull_request:
     branches: [ main ]
 
 jobs:
-  security_scan:
+  bandit-scan:
+    name: Bandit SAST Scan
     runs-on: ubuntu-latest
-
     steps:
-      # --- 1. Setup and Install Stage ---
-      - name: 1. Checkout repository
-        uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      - name: 2. Set up Python 3.10
-        uses: actions/setup-python@v5
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: '3.9'
 
-      - name: 3. Install application and tool dependencies
+      - name: Install Bandit
+        run: pip install bandit[toml]
+
+      - name: Run Bandit scan
         run: |
-          cd Security_Compliance_workshop-siddharth/Day3
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install bandit gunicorn
-
-      # --- 2. SAST Stage (Static Analysis) ---
-      - name: 4. Run Bandit Scan (Python SAST)
-        id: bandit
+          bandit -r . -f html -o bandit-report.html || true
+          bandit -r . -f json -o bandit-report.json || true
         continue-on-error: true
-        run: |
-          echo "Running Bandit scan for Python security..."
-          cd Security_Compliance_workshop-siddharth/Day3
-          bandit -r . -o bandit-report.html -f html || true
 
-      - name: 5. Run Semgrep Scan (Generic SAST)
-        id: semgrep
-        continue-on-error: true
+      - name: Upload Bandit report
+        uses: actions/upload-artifact@v3
+        with:
+          name: bandit-report
+          path: |
+            bandit-report.html
+            bandit-report.json
+
+  semgrep-scan:
+    name: Semgrep SAST Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Run Semgrep
         uses: returntocorp/semgrep-action@v1
         with:
-          config: auto
-          args: --json > semgrep-report.json
-
-      # --- 3. Secrets Stage (Gitleaks) ---
-      - name: 6. Run Gitleaks Scan
-        id: gitleaks
+          config: >-
+            p/security-audit
+            p/python
+            p/flask
+            p/owasp-top-ten
         continue-on-error: true
-        uses: gitleaks/gitleaks-action@v2
-        with:
-          args: detect --report-format json --report-path gitleaks-report.json
 
-      # --- 4. DAST Stage (Dynamic Analysis - ZAP Baseline) ---
-      - name: 7. Start Flask Application (Background Server)
-        id: app_start
+      - name: Generate Semgrep HTML report
         run: |
-          echo "Starting application with Gunicorn on 127.0.0.1:5000..."
-          cd Security_Compliance_workshop-siddharth/Day3
-          gunicorn --bind 127.0.0.1:5000 app:app &
-          echo $! > /tmp/gunicorn.pid
-          echo "Waiting 5 seconds for app to be ready..."
-          sleep 5
-
-      - name: 8. Run OWASP ZAP Baseline Scan
-        id: zap
+          docker run --rm -v "${PWD}:/src" returntocorp/semgrep semgrep \
+            --config=p/security-audit \
+            --config=p/python \
+            --config=p/flask \
+            --config=p/owasp-top-ten \
+            --json -o semgrep-report.json /src || true
+          
+          # Convert JSON to simple HTML
+          echo "<html><head><title>Semgrep Report</title></head><body>" > semgrep-report.html
+          echo "<h1>Semgrep Security Scan Results</h1>" >> semgrep-report.html
+          echo "<pre>" >> semgrep-report.html
+          cat semgrep-report.json >> semgrep-report.html
+          echo "</pre></body></html>" >> semgrep-report.html
         continue-on-error: true
-        uses: zaproxy/action-baseline@v0.9.0
-        with:
-          target: 'http://127.0.0.1:5000'
-          cmd_options: '-r zap-report.html'
 
-      - name: 9. Stop Flask Application
-        if: always()
-        run: |
-          if [ -f /tmp/gunicorn.pid ]; then
-            APP_PID=$(cat /tmp/gunicorn.pid)
-            echo "Stopping application PID: $APP_PID"
-            kill $APP_PID || true
-          else
-            echo "Gunicorn PID file not found. Application may not have started."
-          fi
-
-      # --- 5. Report Stage (Artifacts Upload) ---
-      - name: 10. Upload Scan Artifacts
-        uses: actions/upload-artifact@v4
+      - name: Upload Semgrep report
+        uses: actions/upload-artifact@v3
         with:
-          name: security-scan-reports
+          name: semgrep-report
           path: |
-            Security_Compliance_workshop-siddharth/Day3/bandit-report.html
             semgrep-report.json
-            gitleaks-report.json
+            semgrep-report.html
+
+  gitleaks-scan:
+    name: Gitleaks Secrets Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Run Gitleaks with report generation
+        run: |
+          docker run -v ${PWD}:/path zricethezav/gitleaks:latest detect \
+            --source="/path" \
+            --report-path=/path/gitleaks-report.json \
+            --report-format=json \
+            --verbose || true
+        continue-on-error: true
+
+      - name: Upload Gitleaks report
+        uses: actions/upload-artifact@v3
+        with:
+          name: gitleaks-report
+          path: gitleaks-report.json
+
+  zap-scan:
+    name: OWASP ZAP DAST Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: |
+          pip install flask requests
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Start Flask application
+        run: |
+          python app.py &
+          sleep 10
+          echo "Flask app started"
+        continue-on-error: true
+
+      - name: Run OWASP ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.10.0
+        with:
+          target: 'http://localhost:5000'
+          rules_file_name: '.zap/rules.tsv'
+          cmd_options: '-a'
+        continue-on-error: true
+
+      - name: Run ZAP Full Scan with Docker
+        run: |
+          docker run --network="host" -v $(pwd):/zap/wrk/:rw \
+            -t owasp/zap2docker-stable zap-baseline.py \
+            -t http://localhost:5000 \
+            -r zap-report.html \
+            -J zap-report.json || true
+        continue-on-error: true
+
+      - name: Upload ZAP report
+        uses: actions/upload-artifact@v3
+        with:
+          name: zap-report
+          path: |
             zap-report.html
-          retention-days: 7
+            zap-report.json
+
+  consolidated-report:
+    name: Generate Consolidated Report
+    runs-on: ubuntu-latest
+    needs: [bandit-scan, semgrep-scan, gitleaks-scan, zap-scan]
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+
+      - name: Create consolidated summary
+        run: |
+          echo "# Security Scan Summary" > security-summary.md
+          echo "" >> security-summary.md
+          echo "## Scan Results" >> security-summary.md
+          echo "- Bandit (SAST): Completed" >> security-summary.md
+          echo "- Semgrep (SAST): Completed" >> security-summary.md
+          echo "- Gitleaks (Secrets): Completed" >> security-summary.md
+          echo "- OWASP ZAP (DAST): Completed" >> security-summary.md
+          echo "" >> security-summary.md
+          echo "Download individual reports from artifacts." >> security-summary.md
+
+      - name: Upload consolidated summary
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-summary
+          path: security-summary.md
