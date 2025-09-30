@@ -8,7 +8,7 @@ __pycache__/
 *.sqlite3
 
 # Environment variables
-Security_Compliance_workshop-siddharth/.env
+Security_Compliance_workshop-siddharth/Day3/.env
 .venv
 env/
 venv/
