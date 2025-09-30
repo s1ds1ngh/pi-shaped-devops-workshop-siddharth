@@ -1,4 +1,4 @@
-name: Security Scans
+name: Security Scanning Pipeline
 
 on:
   push:
@@ -8,101 +8,75 @@ on:
   workflow_dispatch:
 
 jobs:
-  bandit-sast:
+  bandit_scan:
+    name: Run Bandit (SAST)
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
+      - uses: actions/checkout@v3
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.9'
-
+          python-version: '3.11'
       - name: Install dependencies
+        run: pip install -r Security_Compliance_workshop-siddharth/Day3/requirements.txt bandit
+      - name: Run Bandit SAST scan
         run: |
-          python -m pip install --upgrade pip
-          pip install bandit flask
-
-      - name: Run Bandit Scan
-        run: bandit -r . -f html -o bandit-report.html
-
-      - name: Upload Bandit Report
-        uses: actions/upload-artifact@v4
+          bandit -r Security_Compliance_workshop-siddharth/Day3 -f html -o bandit-report.html
+      - name: Upload Bandit report
+        uses: actions/upload-artifact@v3
         with:
           name: bandit-report
           path: bandit-report.html
 
-  semgrep-sast:
+  semgrep_scan:
+    name: Run Semgrep (SAST)
     runs-on: ubuntu-latest
-    container:
-      image: semgrep/semgrep
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Run Semgrep Scan
-        run: semgrep ci --json > semgrep-report.json
-
-      - name: Upload Semgrep Report
-        uses: actions/upload-artifact@v4
+      - uses: actions/checkout@v3
+      - name: Run Semgrep scan
+        uses: returntocorp/semgrep-action@v1
         with:
-          name: semgrep-report
-          path: semgrep-report.json
+          config: 'p/default'
+          generateSarif: true
+      - name: Upload Semgrep SARIF
+        uses: actions/upload-artifact@v3
+        with:
+          name: semgrep-results
+          path: semgrep.sarif
 
-  gitleaks-secret-scan:
+  gitleaks_scan:
+    name: Run Gitleaks (Secrets scan)
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Run Gitleaks Scan
+      - uses: actions/checkout@v3
+      - name: Run Gitleaks scan
         uses: gitleaks/gitleaks-action@v2
-        env:
-          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: true
-          
-      - name: Upload Gitleaks Report
-        uses: actions/upload-artifact@v4
+        with:
+          args: "--report-format json --report-path=gitleaks-report.json"
+      - name: Upload Gitleaks report
+        uses: actions/upload-artifact@v3
         with:
           name: gitleaks-report
           path: gitleaks-report.json
-          
-  zap-dast:
+
+  zap_scan:
+    name: Run OWASP ZAP (DAST)
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.9'
-          
-      - name: Install dependencies
+      - uses: actions/checkout@v3
+      - name: Set up Python and install Flask app
         run: |
-          python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-          pip install flask
-
-      - name: Start Flask App
-        run: |
-          # The provided app.py has debug=True which is a single-threaded process.
-          # For the ZAP scan to run concurrently, we need to run the app in the background.
-          # However, a simple background process might be killed when the step finishes.
-          # A more robust solution for a real application would be to use a process manager.
-          # For this exercise, we will run it in the background and give it a moment to start.
-          export FLASK_APP=app.py
-          flask run &
-          sleep 5
-
-      - name: Run OWASP ZAP Scan
-        uses: zaproxy/action-baseline@v0.7.0
+          pip install -r Security_Compliance_workshop-siddharth/Day3/requirements.txt
+          nohup python Security_Compliance_workshop-siddharth/Day3/app.py &
+          sleep 10
+      - name: Run ZAP Baseline scan
+        uses: zaproxy/action-baseline@v0.10.0
         with:
-          target: 'http://127.0.0.1:5000'
-          cmd_options: '-r zap-report.html'
-          
-      - name: Upload ZAP Report
-        uses: actions/upload-artifact@v4
+          target: 'http://localhost:5000'
+          report: true
+          cmd_options: '-a'
+      - name: Upload ZAP report
+        uses: actions/upload-artifact@v3
         with:
           name: zap-report
-          path: zap-report.html
+          path: report_html.html
