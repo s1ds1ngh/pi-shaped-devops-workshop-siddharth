@@ -23,7 +23,7 @@ jobs:
         run: |
           bandit -r Security_Compliance_workshop-siddharth/Day3 -f html -o bandit-report.html
       - name: Upload Bandit report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: bandit-report
           path: bandit-report.html
@@ -39,7 +39,7 @@ jobs:
           config: 'p/default'
           generateSarif: true
       - name: Upload Semgrep SARIF
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: semgrep-results
           path: semgrep.sarif
@@ -54,7 +54,7 @@ jobs:
         with:
           args: "--report-format json --report-path=gitleaks-report.json"
       - name: Upload Gitleaks report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: gitleaks-report
           path: gitleaks-report.json
@@ -76,7 +76,7 @@ jobs:
           report: true
           cmd_options: '-a'
       - name: Upload ZAP report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: zap-report
           path: report_html.html
