@@ -54,10 +54,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      - name: Install Gitleaks
+        run: |
+          wget https://github.com/gitleaks/gitleaks/releases/download/v8.24.3/gitleaks_8.24.3_linux_x64.tar.gz
+          tar -xvzf gitleaks_8.24.3_linux_x64.tar.gz
+          sudo mv gitleaks /usr/local/bin/
+
       - name: Run Gitleaks scan
-        uses: zricethezav/gitleaks-action@v2
-        with:
-          args: detect --report-format json --report-path gitleaks-report.json || true
+        run: |
+          gitleaks detect --report-format json --report-path gitleaks-report.json || true
 
       - name: Upload Gitleaks Report
         uses: actions/upload-artifact@v4
