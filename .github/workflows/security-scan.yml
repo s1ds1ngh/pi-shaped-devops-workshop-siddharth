@@ -64,7 +64,6 @@ jobs:
       - name: Run ZAP Baseline Scan
         run: |
           docker run --rm \
-            --network zapnet \
             -v "$GITHUB_WORKSPACE":/zap/wrk/:rw \
             --user root \
             ghcr.io/zaproxy/zaproxy:stable \
