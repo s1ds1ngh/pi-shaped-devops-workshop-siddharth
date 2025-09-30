@@ -18,7 +18,7 @@ jobs:
       - run: pip install bandit
       - run: bandit -r Security_Compliance_workshop_siddharth -f html -o bandit-report.html || true
       - name: Upload Bandit report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: bandit-report.html
           path: bandit-report.html
@@ -30,7 +30,7 @@ jobs:
       - uses: actions/checkout@v3
       - run: docker run --rm -v ${{ github.workspace }}/Security_Compliance_workshop_siddharth:/src returntocorp/semgrep semgrep --config=auto --json --output=/src/semgrep-report.json /src || true
       - name: Upload Semgrep report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: semgrep-report.json
           path: Security_Compliance_workshop_siddharth/semgrep-report.json
@@ -42,7 +42,7 @@ jobs:
       - uses: actions/checkout@v3
       - run: docker run --rm -v ${{ github.workspace }}/Security_Compliance_workshop_siddharth:/repo zricethezav/gitleaks:latest detect --source=/repo --report-format=json --report-path=/repo/gitleaks-report.json || true
       - name: Upload Gitleaks report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: gitleaks-report.json
           path: Security_Compliance_workshop_siddharth/gitleaks-report.json
@@ -62,7 +62,7 @@ jobs:
         run: |
           docker run --network host -v ${{ github.workspace }}/Security_Compliance_workshop_siddharth:/zap/wrk owasp/zap2docker-stable zap-baseline.py -t http://localhost:5000 -r zap-report.html || true
       - name: Upload ZAP Report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: zap-report.html
           path: Security_Compliance_workshop_siddharth/zap-report.html
