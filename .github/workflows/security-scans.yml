@@ -67,25 +67,23 @@ jobs:
 
   zap:
     runs-on: ubuntu-latest
-    services:
-      app:
-        image: python:3.10
-        ports:
-          - 5000:5000
-        options: >-
-          --health-cmd="curl --fail http://localhost:5000 || exit 1"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
-        volumes:
-          - .:/app
-        command: >
-          sh -c "pip install -r /app/Security_Compliance_workshop-siddharth/requirements.txt &&
-                 python /app/Security_Compliance_workshop-siddharth/app.py"
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Flask dependencies
+        run: |
+          pip install -r Security_Compliance_workshop-siddharth/requirements.txt
+
+      - name: Start Flask app in background
+        run: |
+          nohup python Security_Compliance_workshop-siddharth/app.py &
+          sleep 10  # wait for app to start
 
       - name: Run OWASP ZAP baseline scan
         run: |
