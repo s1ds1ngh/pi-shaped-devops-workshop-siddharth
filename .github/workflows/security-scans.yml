@@ -22,7 +22,7 @@ jobs:
 
       - name: 3. Install application and tool dependencies
         run: |
-          cd Security_Compliance_workshop-Deepak-Srivastava/Day3
+          cd Security_Compliance_workshop-siddharth/Day3
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install bandit gunicorn
@@ -33,7 +33,7 @@ jobs:
         continue-on-error: true
         run: |
           echo "Running Bandit scan for Python security..."
-          cd Security_Compliance_workshop-Deepak-Srivastava/Day3
+          cd Security_Compliance_workshop-siddharth/Day3
           bandit -r . -f html -o bandit-report.html || true
 
       - name: 5. Run Semgrep Scan (Generic SAST)
@@ -59,7 +59,7 @@ jobs:
         id: app_start
         run: |
           echo "Starting application with Gunicorn on 127.0.0.1:5000..."
-          cd Security_Compliance_workshop-Deepak-Srivastava/Day3
+          cd Security_Compliance_workshop-siddharth/Day3
           gunicorn --bind 127.0.0.1:5000 main:app &
           echo $! > /tmp/gunicorn.pid
           echo "Waiting for app to be ready..."
@@ -90,7 +90,7 @@ jobs:
         with:
           name: security-scan-reports
           path: |
-            Security_Compliance_workshop-Deepak-Srivastava/Day3/bandit-report.html
+            Security_Compliance_workshop-siddharth/Day3/bandit-report.html
             semgrep-report.json
             gitleaks-report.json
             zap-report.html
