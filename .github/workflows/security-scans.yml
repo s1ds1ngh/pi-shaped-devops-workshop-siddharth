@@ -58,7 +58,7 @@ jobs:
         run: |
           echo "Starting application with Gunicorn on 127.0.0.1:5000..."
           cd Security_Compliance_workshop-siddharth/Day3
-          gunicorn --bind 127.0.0.1:5000 main:app &
+          gunicorn --bind 127.0.0.1:5000 app:app &
           echo $! > /tmp/gunicorn.pid
           echo "Waiting 5 seconds for app to be ready..."
           sleep 5
