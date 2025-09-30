@@ -1,0 +1,99 @@
+name: Security Scanning Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  bandit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Bandit
+        run: pip install bandit
+
+      - name: Run Bandit scan
+        run: bandit -r . -f html -o bandit-report.html || true
+
+      - name: Upload Bandit Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: bandit-report
+          path: bandit-report.html
+
+  semgrep:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install Semgrep
+        run: pip install semgrep
+
+      - name: Run Semgrep scan
+        run: semgrep --config auto --json > semgrep-report.json || true
+
+      - name: Upload Semgrep Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: semgrep-report
+          path: semgrep-report.json
+
+  gitleaks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Run Gitleaks scan
+        uses: zricethezav/gitleaks-action@v2
+        with:
+          args: detect --report-format json --report-path gitleaks-report.json || true
+
+      - name: Upload Gitleaks Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: gitleaks-report
+          path: gitleaks-report.json
+
+  zap:
+    runs-on: ubuntu-latest
+    services:
+      app:
+        image: python:3.10
+        ports:
+          - 5000:5000
+        options: >-
+          --health-cmd="curl --fail http://localhost:5000 || exit 1"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+        volumes:
+          - .:/app
+        command: >
+          sh -c "pip install -r /app/Security_Compliance_workshop-siddharth/requirements.txt &&
+                 python /app/Security_Compliance_workshop-siddharth/app.py"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Run OWASP ZAP baseline scan
+        run: |
+          docker run --network host -v $(pwd):/zap/wrk/:rw -t owasp/zap2docker-stable \
+          zap-baseline.py -t http://localhost:5000 -r zap-report.html || true
+
+      - name: Upload ZAP Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: zap-report
+          path: zap-report.html
