@@ -52,30 +52,33 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.x'
-      - name: Start Flask app
+
+      - name: Set up Docker Compose
         run: |
-          cd Security_Compliance_workshop_siddharth
-          pip install -r requirements.txt
-          nohup python app.py &
-          sleep 30
-      - name: Prepare ZAP work directory with correct permissions
-        run: |
-          mkdir -p ${{ github.workspace }}/Security_Compliance_workshop_siddharth/zap-wrk
-          chmod 777 ${{ github.workspace }}/Security_Compliance_workshop_siddharth/zap-wrk
-      - name: Run ZAP Baseline Scan
-        run: |
-          docker run \
-            -v ${{ github.workspace }}/Security_Compliance_workshop_siddharth/zap-wrk:/zap/wrk \
-            --network host \
-            ghcr.io/zaproxy/zaproxy:stable \
-            zap-baseline.py -t http://localhost:5000 -r /zap/wrk/zap-report.html -I || true
-      - name: Copy ZAP Report to workspace
-        run: cp Security_Compliance_workshop_siddharth/zap-wrk/zap-report.html Security_Compliance_workshop_siddharth/zap-report.html
+          cat <<'EOF' > docker-compose.yml
+          version: '3.8'
+          services:
+            flask:
+              build: ./Security_Compliance_workshop-siddharth
+              ports:
+                - "5000:5000"
+            zap:
+              image: ghcr.io/zaproxy/zaproxy:stable
+              depends_on:
+                - flask
+              command: >
+                zap-baseline.py
+                -t http://flask:5000
+                -r zap-report.html
+              volumes:
+                - ./Security_Compliance_workshop-siddharth:/zap/wrk
+          EOF
+
+      - name: Run Flask + ZAP
+        run: docker compose up --abort-on-container-exit
+
       - name: Upload ZAP Report
         uses: actions/upload-artifact@v4
         with:
           name: zap-report.html
-          path: Security_Compliance_workshop_siddharth/zap-report.html
+          path: Security_Compliance_workshop-siddharth/zap-report.html
